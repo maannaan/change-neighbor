@@ -25,10 +25,9 @@ SECONDS_PER_DAY = 86400.0
 HIGH_MIN_CONFIDENCE = 70
 MEDIUM_MIN_CONFIDENCE = 45
 WATCH_MIN_CONFIDENCE = 25
-HISTORY_LIMIT_DEFAULT = 50
+DEFAULT_HISTORY_LIMIT = 50
 HISTORY_LIMIT_MIN = 5
 HISTORY_LIMIT_MAX = 500
-MIN_CONFIDENCE_DEFAULT = 25
 BAND_CAP = 5
 JSON_CANDIDATE_CAP = 25
 TEST_GAP_CAP = 3
@@ -179,60 +178,99 @@ class ChangeNeighborError(Exception):
     """User-facing error with a helpful message."""
 
 
-def parse_bool_flag(value: str) -> bool:
-    """Parse a CLI boolean passed as argv data (`true` / `false`)."""
+def parse_bool(value: object) -> bool:
+    """Parse Play/CLI boolean scalars (`true`/`false`/`1`/`0`)."""
+    if isinstance(value, bool):
+        return value
     text = str(value).strip().lower()
-    if text in {"1", "true", "yes", "on"}:
+    if text in {"true", "1", "yes"}:
         return True
-    if text in {"0", "false", "no", "off"}:
+    if text in {"false", "0", "no"}:
         return False
-    raise argparse.ArgumentTypeError(
-        f"Expected true or false, got {value!r}."
+    raise ChangeNeighborError(
+        f"Invalid boolean {value!r}. Use true or false."
     )
 
 
-def validate_history_limit(value: object) -> int:
-    try:
-        limit = int(value)
-    except (TypeError, ValueError) as exc:
-        raise ChangeNeighborError(
-            "history_limit must be an integer between 5 and 500."
-        ) from exc
-    if limit < HISTORY_LIMIT_MIN or limit > HISTORY_LIMIT_MAX:
-        raise ChangeNeighborError(
-            f"history_limit must be between {HISTORY_LIMIT_MIN} and {HISTORY_LIMIT_MAX}."
-        )
-    return limit
-
-
-def validate_min_confidence(value: object) -> int:
-    try:
-        score = int(value)
-    except (TypeError, ValueError) as exc:
-        raise ChangeNeighborError(
-            "min_confidence must be an integer between 0 and 100."
-        ) from exc
-    if score < 0 or score > 100:
-        raise ChangeNeighborError("min_confidence must be between 0 and 100.")
-    return score
-
-
-def select_recommended_neighbors(
-    ranked: Sequence[Neighbor],
+def parse_bounded_int(
+    value: object,
     *,
-    min_confidence: int = MIN_CONFIDENCE_DEFAULT,
-    include_tests: bool = True,
+    name: str,
+    minimum: int,
+    maximum: int,
+) -> int:
+    try:
+        number = int(str(value).strip())
+    except (TypeError, ValueError) as exc:
+        raise ChangeNeighborError(
+            f"{name} must be an integer between {minimum} and {maximum}."
+        ) from exc
+    if number < minimum or number > maximum:
+        raise ChangeNeighborError(
+            f"{name} must be between {minimum} and {maximum}."
+        )
+    return number
+
+
+def normalize_base_ref(value: Optional[str]) -> str:
+    """Return a validated baseline ref, or empty for uncommitted analysis."""
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    if "\n" in text or "\r" in text or "\0" in text:
+        raise ChangeNeighborError("base_ref must be a single Git reference.")
+    if text.startswith("-"):
+        raise ChangeNeighborError(
+            "base_ref looks like a command option and was refused."
+        )
+    return text
+
+
+def resolve_base_ref(repo: str, value: Optional[str]) -> str:
+    """Validate and resolve a Git comparison baseline, if provided."""
+    ref = normalize_base_ref(value)
+    if not ref:
+        return ""
+    try:
+        run_git(repo, ["rev-parse", "--verify", "--end-of-options", "--", ref])
+    except ChangeNeighborError as exc:
+        raise ChangeNeighborError(
+            f"base_ref is not a valid Git reference: {ref}"
+        ) from exc
+    return ref
+
+
+def empty_completeness_map(*, disabled: bool = False) -> Dict[str, object]:
+    return {
+        "surfaces": [],
+        "summary": {
+            "review_count": 0,
+            "covered_count": 0,
+            "unknown_count": 0,
+        },
+        "disabled": disabled,
+    }
+
+
+def is_test_path(path: str) -> bool:
+    return classify_file(path) == "test" or classify_surface(path) == "tests"
+
+
+def filter_test_neighbors(neighbors: Sequence[Neighbor]) -> List[Neighbor]:
+    return [item for item in neighbors if not is_test_path(str(item.get("path") or ""))]
+
+
+def filter_neighbors_by_confidence(
+    neighbors: Sequence[Neighbor],
+    min_confidence: int,
 ) -> List[Neighbor]:
-    """Keep neighbors that meet the user's review threshold."""
-    floor = validate_min_confidence(min_confidence)
-    selected: List[Neighbor] = []
-    for neighbor in ranked:
-        if int(neighbor.get("confidence") or 0) < floor:
-            continue
-        if not include_tests and neighbor.get("file_type") == "test":
-            continue
-        selected.append(neighbor)
-    return selected
+    return [
+        item
+        for item in neighbors
+        if int(item.get("confidence") or 0) >= min_confidence
+    ]
 
 
 def run_git(repo: str, args: Sequence[str], *, check: bool = True) -> str:
@@ -334,50 +372,30 @@ def parse_porcelain_paths(raw: str) -> List[str]:
     return unique
 
 
-def get_changed_files(repo: str) -> List[str]:
-    """Return staged, unstaged, and untracked paths in the working tree."""
+def parse_name_only_paths(raw: str) -> List[str]:
+    """Parse `git diff --name-only -z` output into unique paths."""
+    seen = set()
+    unique: List[str] = []
+    for path in raw.split("\0"):
+        if path and path not in seen:
+            seen.add(path)
+            unique.append(path)
+    return unique
+
+
+def get_changed_files(repo: str, base_ref: str = "") -> List[str]:
+    """Return current change paths against HEAD working tree or a baseline ref."""
+    if base_ref:
+        raw = run_git(
+            repo,
+            ["diff", "--name-only", "-z", "--end-of-options", "--", base_ref],
+            check=False,
+        )
+        return parse_name_only_paths(raw)
     raw = run_git(
         repo, ["status", "--porcelain", "-z", "--untracked-files=all"]
     )
     return parse_porcelain_paths(raw)
-
-
-_SAFE_GIT_REF = re.compile(r"^[A-Za-z0-9._/@~^{}+-]+$")
-
-
-def validate_git_ref(repo: str, ref: str) -> str:
-    """Accept a user-supplied revision as argv data, never as shell text."""
-    cleaned = (ref or "").strip()
-    if not cleaned:
-        return ""
-    if cleaned.startswith("-") or "\n" in cleaned or "\0" in cleaned:
-        raise ChangeNeighborError(
-            "Invalid Git reference: the value must be a revision name, not a flag."
-        )
-    if not _SAFE_GIT_REF.fullmatch(cleaned):
-        raise ChangeNeighborError(
-            "Invalid Git reference: use a revision such as HEAD, main, or HEAD~3."
-        )
-    try:
-        run_git(repo, ["rev-parse", "--verify", cleaned])
-    except ChangeNeighborError as exc:
-        raise ChangeNeighborError(
-            f"Git reference does not exist in this repository: {cleaned}"
-        ) from exc
-    return cleaned
-
-
-def get_changed_files_from_ref(repo: str, ref: str) -> List[str]:
-    """Return paths that differ from a verified revision."""
-    raw = run_git(repo, ["diff", "--name-only", "-z", ref], check=False)
-    paths = [path for path in raw.split("\0") if path]
-    seen = set()
-    unique: List[str] = []
-    for path in paths:
-        if path not in seen:
-            seen.add(path)
-            unique.append(path)
-    return unique
 
 
 def is_tracked_file(repo: str, path: str) -> bool:
@@ -387,9 +405,15 @@ def is_tracked_file(repo: str, path: str) -> bool:
 
 def get_file_diff(repo: str, path: str, base_ref: str = "") -> str:
     """Return a read-only staged+unstaged diff, or untracked file as added lines."""
-    revision = base_ref.strip() or "HEAD"
     if is_tracked_file(repo, path):
-        raw = run_git(repo, ["diff", revision, "--", path], check=False)
+        if base_ref:
+            raw = run_git(
+                repo,
+                ["diff", "--end-of-options", "--", base_ref, "--", path],
+                check=False,
+            )
+        else:
+            raw = run_git(repo, ["diff", "HEAD", "--", path], check=False)
         if "Binary files" in raw and "differ" in raw:
             return ""
         return raw[:DIFF_BYTE_CAP]
@@ -417,7 +441,7 @@ def get_change_analysis(
     base_ref: str = "",
 ) -> List[ChangeAnalysis]:
     return [
-        analyze_change(path, get_file_diff(repo, path, base_ref=base_ref))
+        analyze_change(path, get_file_diff(repo, path, base_ref))
         for path in changed_files
     ]
 
@@ -644,16 +668,22 @@ def _intent_compatibility_one(path: str, file_type: str, intent: str) -> float:
 
 
 def load_history(
-    repo: str, history_limit: int = HISTORY_LIMIT_DEFAULT
+    repo: str,
+    history_limit: int = DEFAULT_HISTORY_LIMIT,
 ) -> List[CommitRecord]:
     """Load non-merge commits with timestamps and the files each one modified."""
-    limit = validate_history_limit(history_limit)
+    limit = parse_bounded_int(
+        history_limit,
+        name="history_limit",
+        minimum=HISTORY_LIMIT_MIN,
+        maximum=HISTORY_LIMIT_MAX,
+    )
     raw = run_git(
         repo,
         [
             "log",
             "--no-merges",
-            "-n",
+            "--max-count",
             str(limit),
             "--pretty=format:%H %ct",
             "--name-only",
@@ -1456,27 +1486,10 @@ def _render_change_analysis(change_analysis: Sequence[ChangeAnalysis]) -> List[s
     return lines
 
 
-def _render_analysis_config(config: Optional[Dict[str, object]]) -> List[str]:
-    if not config:
-        return []
-    baseline = str(config.get("baseline") or "Uncommitted working tree")
-    return [
-        "",
-        "ANALYSIS CONFIGURATION",
-        "",
-        f"History limit: {config.get('history_limit', HISTORY_LIMIT_DEFAULT)}",
-        f"Minimum confidence: {config.get('min_confidence', MIN_CONFIDENCE_DEFAULT)}/100",
-        f"Test analysis: {'Enabled' if config.get('include_tests', True) else 'Disabled'}",
-        f"Surface analysis: {'Enabled' if config.get('include_surfaces', True) else 'Disabled'}",
-        f"Baseline: {baseline}",
-        "",
-    ]
-
-
 def _render_completeness_map(
     completeness_map: Optional[Dict[str, object]],
 ) -> List[str]:
-    if not completeness_map:
+    if not completeness_map or completeness_map.get("disabled"):
         return []
     surfaces = list(completeness_map.get("surfaces") or [])
     if not surfaces:
@@ -1552,30 +1565,33 @@ def _render_completeness_map(
     return lines
 
 
-def render_text(
-    changed_files: Sequence[str],
-    commits_analyzed: int,
-    buckets: NeighborBuckets,
-    test_gap: Optional[Sequence[Neighbor]] = None,
-    change_analysis: Optional[Sequence[ChangeAnalysis]] = None,
-    completeness_map: Optional[Dict[str, object]] = None,
-    analysis_config: Optional[Dict[str, object]] = None,
-) -> str:
+def _render_configuration(configuration: Optional[Dict[str, object]]) -> List[str]:
+    if not configuration:
+        return []
+    include_tests = bool(configuration.get("include_tests", True))
+    include_surfaces = bool(configuration.get("include_surfaces", True))
+    base_ref = str(configuration.get("base_ref") or "").strip()
     lines = [
-        "CHANGE NEIGHBOR REPORT",
         "",
-        "This report surfaces historically related files that may deserve review.",
-        "Historical evidence is not a requirement and does not prove a change is unfinished.",
+        "ANALYSIS CONFIGURATION",
+        "",
+        f"Repository: {configuration.get('repo_path') or 'provided path'}",
+        f"History limit: {configuration.get('history_limit', DEFAULT_HISTORY_LIMIT)}",
+        f"Minimum confidence: {configuration.get('min_confidence', WATCH_MIN_CONFIDENCE)}/100",
+        f"Test analysis: {'Enabled' if include_tests else 'Disabled'}",
+        f"Surface analysis: {'Enabled' if include_surfaces else 'Disabled'}",
+        f"Baseline: {base_ref or 'Uncommitted working tree'}",
     ]
-    lines.extend(_render_analysis_config(analysis_config))
-    lines.extend(["", "CURRENT CHANGES"])
-    if changed_files:
-        lines.extend(f"- {path}" for path in changed_files)
-    else:
-        lines.append("- None")
-
-    lines.extend(_render_change_analysis(change_analysis or []))
-    if analysis_config and not analysis_config.get("include_surfaces", True):
+    if not include_tests:
+        lines.extend(
+            [
+                "",
+                "TEST ANALYSIS DISABLED",
+                "",
+                "Test-related historical neighbors were excluded for this run.",
+            ]
+        )
+    if not include_surfaces:
         lines.extend(
             [
                 "",
@@ -1584,15 +1600,47 @@ def render_text(
                 "The completeness map was not generated for this run.",
             ]
         )
+    return lines
+
+
+def render_text(
+    changed_files: Sequence[str],
+    commits_analyzed: int,
+    buckets: NeighborBuckets,
+    test_gap: Optional[Sequence[Neighbor]] = None,
+    change_analysis: Optional[Sequence[ChangeAnalysis]] = None,
+    completeness_map: Optional[Dict[str, object]] = None,
+    configuration: Optional[Dict[str, object]] = None,
+) -> str:
+    lines = [
+        "CHANGE NEIGHBOR REPORT",
+        "",
+        "This report surfaces historical neighbors that may deserve review.",
+        "It does not claim that any file is required or that the change is incomplete.",
+    ]
+    lines.extend(_render_configuration(configuration))
+    lines.extend(
+        [
+            "",
+            "CURRENT CHANGES",
+            "",
+        ]
+    )
+    if changed_files:
+        lines.extend(f"- {path}" for path in changed_files)
     else:
-        lines.extend(_render_completeness_map(completeness_map))
+        lines.append("- None")
+
+    lines.extend(_render_change_analysis(change_analysis or []))
+    lines.extend(_render_completeness_map(completeness_map))
 
     lines.extend(
         [
             "",
-            "HISTORICAL NEIGHBORS",
+            "Historical commits analyzed:",
+            f"- {commits_analyzed}",
             "",
-            f"Historical commits analyzed: {commits_analyzed}",
+            "Likely forgotten neighbors:",
             "",
         ]
     )
@@ -1613,16 +1661,7 @@ def render_text(
                 lines.extend(_render_neighbor_block(neighbor))
         lines.append("")
 
-    if analysis_config and not analysis_config.get("include_tests", True):
-        lines.extend(
-            [
-                "TEST ANALYSIS DISABLED",
-                "",
-                "Test-related historical neighbors were excluded for this run.",
-                "",
-            ]
-        )
-    elif test_gap:
+    if test_gap:
         lines.append("POSSIBLE TEST GAP")
         for index, neighbor in enumerate(test_gap):
             if index:
@@ -1641,9 +1680,10 @@ def render_json(
     candidates: Optional[Sequence[Neighbor]] = None,
     change_analysis: Optional[Sequence[ChangeAnalysis]] = None,
     completeness_map: Optional[Dict[str, object]] = None,
-    analysis_config: Optional[Dict[str, object]] = None,
+    configuration: Optional[Dict[str, object]] = None,
 ) -> str:
     payload = {
+        "configuration": configuration or {},
         "current_changes": list(changed_files),
         "change_analysis": [
             {
@@ -1665,15 +1705,6 @@ def render_json(
         "candidates": [
             _json_neighbor(item) for item in (candidates or [])[:JSON_CANDIDATE_CAP]
         ],
-        "analysis_config": analysis_config
-        or {
-            "history_limit": HISTORY_LIMIT_DEFAULT,
-            "min_confidence": MIN_CONFIDENCE_DEFAULT,
-            "include_tests": True,
-            "include_surfaces": True,
-            "base_ref": "",
-            "baseline": "Uncommitted working tree",
-        },
     }
     return json.dumps(payload, indent=2) + "\n"
 
@@ -1713,105 +1744,72 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         help="Path to a local Git repository (working tree).",
     )
     parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Print the report as JSON instead of text.",
-    )
-    parser.add_argument(
         "--history-limit",
-        type=int,
-        default=HISTORY_LIMIT_DEFAULT,
-        help="Maximum number of historical commits to analyze (5-500, default 50).",
+        default=DEFAULT_HISTORY_LIMIT,
+        help="Maximum number of historical commits to inspect (5-500, default 50).",
     )
     parser.add_argument(
         "--min-confidence",
-        type=int,
-        default=MIN_CONFIDENCE_DEFAULT,
-        help="Minimum confidence (0-100) for recommended neighbors (default 25).",
+        default=WATCH_MIN_CONFIDENCE,
+        help="Minimum confidence for recommended neighbors (0-100, default 25).",
     )
     parser.add_argument(
         "--include-tests",
-        type=parse_bool_flag,
-        default=True,
+        default="true",
         help="Include historically related tests (true/false, default true).",
     )
     parser.add_argument(
         "--include-surfaces",
-        type=parse_bool_flag,
-        default=True,
-        help="Build the completeness map (true/false, default true).",
+        default="true",
+        help="Build the change completeness map (true/false, default true).",
     )
     parser.add_argument(
         "--base-ref",
         default="",
-        help="Optional Git revision to compare against. Empty uses uncommitted changes.",
+        help="Optional Git baseline. Leave empty to analyze uncommitted changes.",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print the report as JSON instead of text.",
     )
     return parser.parse_args(argv)
-
-
-def build_analysis_config(
-    *,
-    history_limit: int,
-    min_confidence: int,
-    include_tests: bool,
-    include_surfaces: bool,
-    base_ref: str,
-) -> Dict[str, object]:
-    cleaned = (base_ref or "").strip()
-    return {
-        "history_limit": history_limit,
-        "min_confidence": min_confidence,
-        "include_tests": include_tests,
-        "include_surfaces": include_surfaces,
-        "base_ref": cleaned,
-        "baseline": cleaned or "Uncommitted working tree",
-    }
-
-
-def _without_test_surfaces(mapping: Dict[str, object]) -> Dict[str, object]:
-    surfaces = [
-        item
-        for item in list(mapping.get("surfaces") or [])
-        if item.get("surface") != "tests"
-    ]
-    return {
-        "surfaces": surfaces,
-        "summary": {
-            "review_count": sum(1 for item in surfaces if item.get("status") == "review"),
-            "covered_count": sum(1 for item in surfaces if item.get("status") == "covered"),
-            "unknown_count": sum(1 for item in surfaces if item.get("status") == "unknown"),
-        },
-    }
 
 
 def analyze_repo(
     repo: str,
     *,
-    history_limit: int = HISTORY_LIMIT_DEFAULT,
-    min_confidence: int = MIN_CONFIDENCE_DEFAULT,
+    history_limit: int = DEFAULT_HISTORY_LIMIT,
+    min_confidence: int = WATCH_MIN_CONFIDENCE,
     include_tests: bool = True,
     include_surfaces: bool = True,
     base_ref: str = "",
 ) -> Dict[str, object]:
-    history_limit = validate_history_limit(history_limit)
-    min_confidence = validate_min_confidence(min_confidence)
-    revision = validate_git_ref(repo, base_ref) if (base_ref or "").strip() else ""
-    config = build_analysis_config(
-        history_limit=history_limit,
-        min_confidence=min_confidence,
-        include_tests=include_tests,
-        include_surfaces=include_surfaces,
-        base_ref=revision,
+    history_limit = parse_bounded_int(
+        history_limit,
+        name="history_limit",
+        minimum=HISTORY_LIMIT_MIN,
+        maximum=HISTORY_LIMIT_MAX,
     )
-    changed_files = (
-        get_changed_files_from_ref(repo, revision)
-        if revision
-        else get_changed_files(repo)
+    min_confidence = parse_bounded_int(
+        min_confidence,
+        name="min_confidence",
+        minimum=0,
+        maximum=100,
     )
-    empty_map = {
-        "surfaces": [],
-        "summary": {"review_count": 0, "covered_count": 0, "unknown_count": 0},
+    include_tests = parse_bool(include_tests)
+    include_surfaces = parse_bool(include_surfaces)
+    resolved_ref = resolve_base_ref(repo, base_ref)
+    configuration = {
+        "repo_path": repo,
+        "history_limit": history_limit,
+        "min_confidence": min_confidence,
+        "include_tests": include_tests,
+        "include_surfaces": include_surfaces,
+        "base_ref": resolved_ref,
     }
+
+    changed_files = get_changed_files(repo, resolved_ref)
     empty_buckets: NeighborBuckets = {"high": [], "medium": [], "watch": []}
     if not changed_files:
         return {
@@ -1821,36 +1819,39 @@ def analyze_repo(
             "test_gap": [],
             "candidates": [],
             "change_analysis": [],
-            "completeness_map": empty_map,
-            "analysis_config": config,
+            "completeness_map": empty_completeness_map(disabled=not include_surfaces),
+            "configuration": configuration,
         }
 
-    change_analysis = get_change_analysis(repo, changed_files, base_ref=revision)
-    history = load_history(repo, history_limit=history_limit)
+    change_analysis = get_change_analysis(repo, changed_files, resolved_ref)
+    history = load_history(repo, history_limit)
     commits_analyzed, ranked = score_neighbors(
         changed_files, history, change_analysis
     )
-    recommended = select_recommended_neighbors(
-        ranked,
-        min_confidence=min_confidence,
-        include_tests=include_tests,
-    )
-    completeness_map = empty_map
+    evidence = ranked if include_tests else filter_test_neighbors(ranked)
+    display = filter_neighbors_by_confidence(evidence, min_confidence)
     if include_surfaces:
-        completeness_map = build_completeness_map(changed_files, ranked)
-        if not include_tests:
-            completeness_map = _without_test_surfaces(completeness_map)
+        map_changed = (
+            changed_files
+            if include_tests
+            else [path for path in changed_files if not is_test_path(path)]
+        )
+        completeness_map = build_completeness_map(map_changed, evidence)
+    else:
+        completeness_map = empty_completeness_map(disabled=True)
     return {
         "changed_files": changed_files,
         "commits_analyzed": commits_analyzed,
-        "buckets": bucket_neighbors(recommended),
-        "test_gap": find_test_gaps(changed_files, ranked, change_analysis)
-        if include_tests
-        else [],
-        "candidates": recommended[:JSON_CANDIDATE_CAP],
+        "buckets": bucket_neighbors(display),
+        "test_gap": (
+            find_test_gaps(changed_files, evidence, change_analysis)
+            if include_tests
+            else []
+        ),
+        "candidates": evidence[:JSON_CANDIDATE_CAP],
         "change_analysis": change_analysis,
         "completeness_map": completeness_map,
-        "analysis_config": config,
+        "configuration": configuration,
     }
 
 
@@ -1876,11 +1877,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     test_gap = result["test_gap"]
     candidates = result["candidates"]
     change_analysis = result.get("change_analysis") or []
-    completeness_map = result.get("completeness_map") or {
-        "surfaces": [],
-        "summary": {"review_count": 0, "covered_count": 0, "unknown_count": 0},
-    }
-    analysis_config = result.get("analysis_config")
+    completeness_map = result.get("completeness_map") or empty_completeness_map()
+    configuration = result.get("configuration") or {}
 
     if args.json:
         sys.stdout.write(
@@ -1892,7 +1890,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 candidates,
                 change_analysis,
                 completeness_map,
-                analysis_config,
+                configuration,
             )
         )
     else:
@@ -1904,7 +1902,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 test_gap,
                 change_analysis,
                 completeness_map,
-                analysis_config,
+                configuration,
             )
         )
     return 0

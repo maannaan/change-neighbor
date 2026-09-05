@@ -889,5 +889,13 @@
     "include_surfaces": true,
     "base_ref": "",
     "baseline": "Uncommitted working tree"
+  },
+  "configuration": {
+    "repo_path": "provided path",
+    "history_limit": 50,
+    "min_confidence": 25,
+    "include_tests": true,
+    "include_surfaces": true,
+    "base_ref": ""
   }
 }

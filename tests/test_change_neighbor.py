@@ -510,209 +510,177 @@ class ParseHistoryTests(unittest.TestCase):
         self.assertEqual(commits[0][2], ["src/app.py", "tests/test_app.py"])
 
 
-class AnalysisConfigTests(unittest.TestCase):
-    def test_parse_args_defaults_and_original_cli(self):
-        args = cn.parse_args(["--repo", "/tmp/example", "--json"])
-        self.assertEqual(args.history_limit, 50)
-        self.assertEqual(args.min_confidence, 25)
-        self.assertTrue(args.include_tests)
-        self.assertTrue(args.include_surfaces)
+class ConfigOptionTests(unittest.TestCase):
+    def test_parse_args_backward_compatible_defaults(self):
+        args = cn.parse_args(["--repo", "/tmp/demo"])
+        self.assertEqual(args.repo, "/tmp/demo")
+        self.assertFalse(args.json)
+        self.assertEqual(int(args.history_limit), cn.DEFAULT_HISTORY_LIMIT)
+        self.assertEqual(int(args.min_confidence), cn.WATCH_MIN_CONFIDENCE)
+        self.assertTrue(cn.parse_bool(args.include_tests))
+        self.assertTrue(cn.parse_bool(args.include_surfaces))
         self.assertEqual(args.base_ref, "")
-        self.assertTrue(args.json)
 
-    def test_history_limit_is_passed_to_git_log(self):
-        seen = []
+    def test_history_limit_validation(self):
+        self.assertEqual(
+            cn.parse_bounded_int(
+                50,
+                name="history_limit",
+                minimum=cn.HISTORY_LIMIT_MIN,
+                maximum=cn.HISTORY_LIMIT_MAX,
+            ),
+            50,
+        )
+        with self.assertRaises(cn.ChangeNeighborError):
+            cn.parse_bounded_int(
+                4,
+                name="history_limit",
+                minimum=cn.HISTORY_LIMIT_MIN,
+                maximum=cn.HISTORY_LIMIT_MAX,
+            )
+        with self.assertRaises(cn.ChangeNeighborError):
+            cn.parse_bounded_int(
+                501,
+                name="history_limit",
+                minimum=cn.HISTORY_LIMIT_MIN,
+                maximum=cn.HISTORY_LIMIT_MAX,
+            )
 
-        def fake_run(_repo, args, *, check=True):
-            seen.append(list(args))
+    def test_load_history_passes_max_count(self):
+        captured = {}
+
+        def fake_run(repo, args, *, check=True):
+            captured["args"] = list(args)
             return ""
 
         original = cn.run_git
         cn.run_git = fake_run
         try:
-            self.assertEqual(cn.load_history("/tmp/repo"), [])
-            self.assertEqual(cn.load_history("/tmp/repo", history_limit=20), [])
+            self.assertEqual(cn.load_history("/repo", 20), [])
         finally:
             cn.run_git = original
-        self.assertEqual(seen[0][0:4], ["log", "--no-merges", "-n", "50"])
-        self.assertEqual(seen[1][0:4], ["log", "--no-merges", "-n", "20"])
+        self.assertIn("--max-count", captured["args"])
+        self.assertEqual(captured["args"][captured["args"].index("--max-count") + 1], "20")
 
-    def test_history_limit_validation(self):
-        self.assertEqual(cn.validate_history_limit(50), 50)
-        self.assertEqual(cn.validate_history_limit(5), 5)
-        self.assertEqual(cn.validate_history_limit(500), 500)
-        with self.assertRaises(cn.ChangeNeighborError):
-            cn.validate_history_limit(4)
-        with self.assertRaises(cn.ChangeNeighborError):
-            cn.validate_history_limit(501)
-        with self.assertRaises(cn.ChangeNeighborError):
-            cn.validate_history_limit("nope")
-
-    def test_min_confidence_validation_and_filtering(self):
-        self.assertEqual(cn.validate_min_confidence(0), 0)
-        self.assertEqual(cn.validate_min_confidence(100), 100)
-        self.assertEqual(cn.validate_min_confidence(25), 25)
-        with self.assertRaises(cn.ChangeNeighborError):
-            cn.validate_min_confidence(-1)
-        with self.assertRaises(cn.ChangeNeighborError):
-            cn.validate_min_confidence(101)
-
-        ranked = [
-            {"path": "high.py", "file_type": "source", "confidence": 82},
-            {"path": "watch.py", "file_type": "source", "confidence": 30},
-            {"path": "tests/test_high.py", "file_type": "test", "confidence": 50},
+    def test_min_confidence_filters_neighbors(self):
+        neighbors = [
+            {"path": "high.py", "confidence": 82},
+            {"path": "watch.py", "confidence": 30},
         ]
-        defaulted = cn.select_recommended_neighbors(ranked)
-        self.assertEqual([item["path"] for item in defaulted], [
-            "high.py",
-            "watch.py",
-            "tests/test_high.py",
-        ])
-        filtered = cn.select_recommended_neighbors(ranked, min_confidence=40)
-        self.assertEqual([item["path"] for item in filtered], [
-            "high.py",
-            "tests/test_high.py",
-        ])
-        no_tests = cn.select_recommended_neighbors(ranked, include_tests=False)
-        self.assertEqual([item["path"] for item in no_tests], ["high.py", "watch.py"])
+        filtered = cn.filter_neighbors_by_confidence(neighbors, 40)
+        self.assertEqual([item["path"] for item in filtered], ["high.py"])
+        self.assertEqual(cn.filter_neighbors_by_confidence(neighbors, 0), neighbors)
+        self.assertEqual(cn.filter_neighbors_by_confidence(neighbors, 100), [])
+        self.assertEqual(
+            cn.parse_bounded_int(25, name="min_confidence", minimum=0, maximum=100),
+            25,
+        )
+        with self.assertRaises(cn.ChangeNeighborError):
+            cn.parse_bounded_int(-1, name="min_confidence", minimum=0, maximum=100)
+        with self.assertRaises(cn.ChangeNeighborError):
+            cn.parse_bounded_int(101, name="min_confidence", minimum=0, maximum=100)
 
-    def test_include_surfaces_false_skips_map(self):
+    def test_include_tests_false_drops_tests_and_gaps(self):
+        ranked = [
+            {
+                "path": "frontend/lib/api.ts",
+                "confidence": 82,
+                "file_type": "source",
+                "supporting_commits": 8,
+                "relevant_commits": 8,
+                "frequency": 1.0,
+            },
+            {
+                "path": "backend/tests/test_api.py",
+                "confidence": 32,
+                "file_type": "test",
+                "supporting_commits": 3,
+                "relevant_commits": 8,
+                "frequency": 0.375,
+            },
+        ]
+        without_tests = cn.filter_test_neighbors(ranked)
+        self.assertEqual([item["path"] for item in without_tests], ["frontend/lib/api.ts"])
         mapping = cn.build_completeness_map(
             ["backend/app/routes/demo.py"],
-            [
-                {
-                    "path": "frontend/lib/api.ts",
-                    "supporting_commits": 8,
-                    "relevant_commits": 8,
-                    "frequency": 1.0,
-                    "confidence": 82,
-                }
-            ],
+            without_tests,
         )
-        self.assertTrue(mapping["surfaces"])
+        surfaces = {item["surface"] for item in mapping["surfaces"]}
+        self.assertNotIn("tests", surfaces)
+        self.assertEqual(cn.empty_completeness_map(disabled=True)["disabled"], True)
+
+    def test_include_surfaces_false_skips_map_text(self):
         text = cn.render_text(
             ["backend/app/routes/demo.py"],
             8,
             {"high": [], "medium": [], "watch": []},
-            completeness_map=mapping,
-            analysis_config=cn.build_analysis_config(
-                history_limit=20,
-                min_confidence=40,
-                include_tests=True,
-                include_surfaces=False,
-                base_ref="",
-            ),
+            completeness_map=cn.empty_completeness_map(disabled=True),
+            configuration={
+                "repo_path": "/repo",
+                "history_limit": 20,
+                "min_confidence": 40,
+                "include_tests": True,
+                "include_surfaces": False,
+                "base_ref": "",
+            },
         )
         self.assertIn("SURFACE ANALYSIS DISABLED", text)
         self.assertNotIn("CHANGE COMPLETENESS MAP", text)
 
-    def test_include_tests_false_omits_test_surface_and_gap(self):
-        mapping = {
-            "surfaces": [
-                {"surface": "backend_api", "status": "covered"},
-                {"surface": "tests", "status": "review"},
-            ]
-        }
-        trimmed = cn._without_test_surfaces(mapping)
-        self.assertEqual([item["surface"] for item in trimmed["surfaces"]], ["backend_api"])
-        self.assertEqual(trimmed["summary"]["review_count"], 0)
-        text = cn.render_text(
-            ["backend/app/routes/demo.py"],
-            8,
-            {"high": [], "medium": [], "watch": []},
-            test_gap=[{"path": "tests/test_api.py", "confidence": 32, "supporting_commits": 2, "relevant_commits": 8, "explanation": {}}],
-            analysis_config=cn.build_analysis_config(
-                history_limit=50,
-                min_confidence=25,
-                include_tests=False,
-                include_surfaces=True,
-                base_ref="",
-            ),
-        )
-        self.assertIn("TEST ANALYSIS DISABLED", text)
-        self.assertNotIn("POSSIBLE TEST GAP", text)
+    def test_base_ref_empty_and_invalid(self):
+        self.assertEqual(cn.normalize_base_ref(""), "")
+        self.assertEqual(cn.normalize_base_ref("   "), "")
+        with self.assertRaises(cn.ChangeNeighborError):
+            cn.normalize_base_ref("--all")
+        with self.assertRaises(cn.ChangeNeighborError):
+            cn.normalize_base_ref("origin/main\nHEAD")
 
-    def test_json_includes_analysis_config_and_stays_valid(self):
+    def test_valid_base_ref_uses_diff_end_of_options(self):
+        captured = []
+
+        def fake_run(repo, args, *, check=True):
+            captured.append(list(args))
+            if args[0] == "rev-parse":
+                return "abc123\n"
+            if args[0] == "diff" and "--name-only" in args:
+                return "backend/app/routes/demo.py\0"
+            return ""
+
+        original = cn.run_git
+        cn.run_git = fake_run
+        try:
+            self.assertEqual(cn.resolve_base_ref("/repo", "origin/main"), "origin/main")
+            self.assertEqual(
+                cn.get_changed_files("/repo", "origin/main"),
+                ["backend/app/routes/demo.py"],
+            )
+        finally:
+            cn.run_git = original
+        self.assertIn(["rev-parse", "--verify", "--end-of-options", "--", "origin/main"], captured)
+        self.assertTrue(
+            any(args[:3] == ["diff", "--name-only", "-z"] and "--end-of-options" in args for args in captured)
+        )
+
+    def test_json_includes_configuration_and_existing_keys(self):
         payload = json.loads(
             cn.render_json(
                 ["backend/app/routes/demo.py"],
                 8,
                 {"high": [], "medium": [], "watch": []},
+                configuration={
+                    "repo_path": "/repo",
+                    "history_limit": 50,
+                    "min_confidence": 25,
+                    "include_tests": True,
+                    "include_surfaces": True,
+                    "base_ref": "",
+                },
             )
         )
-        self.assertEqual(payload["analysis_config"]["history_limit"], 50)
-        self.assertEqual(payload["analysis_config"]["min_confidence"], 25)
-        self.assertTrue(payload["analysis_config"]["include_tests"])
-        self.assertTrue(payload["analysis_config"]["include_surfaces"])
         self.assertIn("likely_forgotten_neighbors", payload)
-
-    def test_base_ref_empty_and_invalid_values(self):
-        self.assertEqual(cn.validate_git_ref("/tmp", ""), "")
-        with self.assertRaises(cn.ChangeNeighborError):
-            cn.validate_git_ref("/tmp", "--output=/tmp/evil")
-        with self.assertRaises(cn.ChangeNeighborError):
-            cn.validate_git_ref("/tmp", "bad ref")
-
-    def test_base_ref_valid_and_unknown_in_temp_repo(self):
-        import shutil
-        import subprocess
-        import tempfile
-
-        root = tempfile.mkdtemp(prefix="change-neighbor-ref-")
-        try:
-            subprocess.run(
-                ["git", "init", "-b", "main"],
-                cwd=root,
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-            )
-            subprocess.run(
-                ["git", "config", "user.email", "test@example.com"],
-                cwd=root,
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            subprocess.run(
-                ["git", "config", "user.name", "Test"],
-                cwd=root,
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            with open(os.path.join(root, "app.py"), "w", encoding="utf-8") as handle:
-                handle.write("print('one')\n")
-            subprocess.run(
-                ["git", "add", "app.py"],
-                cwd=root,
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            subprocess.run(
-                ["git", "commit", "-m", "first"],
-                cwd=root,
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            self.assertEqual(cn.validate_git_ref(root, "HEAD"), "HEAD")
-            with self.assertRaises(cn.ChangeNeighborError):
-                cn.validate_git_ref(root, "definitely-not-a-ref")
-            with open(os.path.join(root, "app.py"), "w", encoding="utf-8") as handle:
-                handle.write("print('two')\n")
-            changed = cn.get_changed_files_from_ref(root, "HEAD")
-            self.assertEqual(changed, ["app.py"])
-        finally:
-            shutil.rmtree(root)
-
-    def test_parse_bool_flag(self):
-        self.assertTrue(cn.parse_bool_flag("true"))
-        self.assertFalse(cn.parse_bool_flag("false"))
-        with self.assertRaises(Exception):
-            cn.parse_bool_flag("maybe")
+        self.assertIn("watch", payload["likely_forgotten_neighbors"])
+        self.assertEqual(payload["configuration"]["history_limit"], 50)
+        self.assertTrue(payload["configuration"]["include_tests"])
 
 
 if __name__ == "__main__":
