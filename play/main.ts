@@ -14,6 +14,7 @@
  * @rote-frontmatter
  * ---
  * name: change-neighbor
+ * source: https://github.com/maannaan/change-neighbor
  * description: "Analyze uncommitted Git changes against repository history and surface files, tests, and implementation surfaces that historically change together. Evidence-based recommendations help reviewers inspect likely neighbors before committing without claiming that any file is required. Reads Git metadata, diffs, and history only; does not modify the repository, run its code, install dependencies, or make network calls."
  * metadata:
  *   rote_version: 0.80.0

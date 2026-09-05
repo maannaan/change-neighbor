@@ -182,10 +182,13 @@ def run_git(repo: str, args: Sequence[str], *, check: bool = True) -> str:
             "Internal error: refused to run a non-read-only git command."
         )
 
-    command = ["git", "-C", repo, *args]
+    # Executable is always the literal PATH tool `git`. The repo path and
+    # allowlisted subcommand are argv data, never shell text. shell=False is
+    # explicit so the Play auditor can see the boundary statically.
     try:
         completed = subprocess.run(
-            command,
+            ["git", "-C", repo, *args],
+            shell=False,
             check=False,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -198,8 +201,9 @@ def run_git(repo: str, args: Sequence[str], *, check: bool = True) -> str:
 
     if check and completed.returncode != 0:
         detail = completed.stderr.strip() or completed.stdout.strip()
+        display = " ".join(["git", "-C", repo, *args])
         raise ChangeNeighborError(
-            f"Git command failed ({' '.join(command)}): {detail or 'unknown error'}"
+            f"Git command failed ({display}): {detail or 'unknown error'}"
         )
     return completed.stdout
 

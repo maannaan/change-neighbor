@@ -1,5 +1,7 @@
 # Change Neighbor
 
+Source: [https://github.com/maannaan/change-neighbor](https://github.com/maannaan/change-neighbor)
+
 A read-only analyzer that looks at **uncommitted Git changes**, reads the **actual diffs**, infers a deterministic change intent, then compares that against repository history to rank the **3–10 files you are most likely forgetting**.
 
 It is packaged two ways:
@@ -11,7 +13,11 @@ No LLMs. No network calls. It never modifies the target repository, never runs r
 
 ## Safety
 
-The engine only runs allowlisted read-only Git commands: `status`, `log`, `rev-parse`, `ls-files`, and `diff`. It does not create commits, checkout branches, write files, push remotes, or call the network. Recommendations use cautious wording: files **may deserve review**. Nothing is marked required, missing, or incomplete.
+The engine only runs allowlisted read-only Git commands: `status`, `log`, `rev-parse`, `diff-tree`, `ls-files`, and `diff`. The executable is always `git` (`shell=False`). The repository path is an argv argument (`git -C <repo> …`), not shell text. User input never chooses an executable. The analyzer does not create commits, checkout branches, write files, push remotes, run repository code, or call the network.
+
+Recommendations use cautious wording: files **may deserve review**. Historical evidence is not a requirement. Nothing is marked required, missing, or incomplete.
+
+**Evidence vs recommendation:** co-change history is a fact. A HIGH neighbor or a REVIEW surface is a suggestion to inspect that area before committing, not a claim that the change is wrong or unfinished. UNKNOWN is a valid outcome when the signal is weak.
 
 ## Play usage
 
