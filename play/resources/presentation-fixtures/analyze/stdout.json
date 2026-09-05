@@ -1,0 +1,885 @@
+{
+  "current_changes": [
+    "backend/app/routes/demo.py"
+  ],
+  "change_analysis": [
+    {
+      "path": "backend/app/routes/demo.py",
+      "intents": [
+        "api",
+        "backend_logic"
+      ],
+      "signals": [
+        "route-related file path",
+        "backend route file path"
+      ]
+    }
+  ],
+  "completeness_map": {
+    "surfaces": [
+      {
+        "surface": "backend_api",
+        "status": "covered",
+        "candidate_count": 7,
+        "representatives": [],
+        "evidence": {
+          "strongest_frequency": 0.625,
+          "strongest_path": "backend/app/routes/violations.py",
+          "strongest_support": 5,
+          "strongest_relevant": 8
+        },
+        "explanation": "Observed: the current change set already includes Backend API files."
+      },
+      {
+        "surface": "api_integration",
+        "status": "review",
+        "candidate_count": 1,
+        "representatives": [
+          {
+            "path": "frontend/lib/api.ts",
+            "supporting_commits": 8,
+            "relevant_commits": 8,
+            "frequency": 1.0
+          }
+        ],
+        "evidence": {
+          "strongest_frequency": 1.0,
+          "strongest_path": "frontend/lib/api.ts",
+          "strongest_support": 8,
+          "strongest_relevant": 8
+        },
+        "explanation": "Historical evidence: 1 related API Integration candidate(s). Strongest signal: frontend/lib/api.ts. No API Integration files are part of the current change."
+      },
+      {
+        "surface": "frontend_ui",
+        "status": "review",
+        "candidate_count": 3,
+        "representatives": [
+          {
+            "path": "frontend/app/dashboard/page.tsx",
+            "supporting_commits": 6,
+            "relevant_commits": 8,
+            "frequency": 0.75
+          },
+          {
+            "path": "frontend/components/JudgeProgress.tsx",
+            "supporting_commits": 3,
+            "relevant_commits": 8,
+            "frequency": 0.375
+          },
+          {
+            "path": "frontend/app/page.tsx",
+            "supporting_commits": 4,
+            "relevant_commits": 8,
+            "frequency": 0.5
+          }
+        ],
+        "evidence": {
+          "strongest_frequency": 0.75,
+          "strongest_path": "frontend/app/dashboard/page.tsx",
+          "strongest_support": 6,
+          "strongest_relevant": 8
+        },
+        "explanation": "Historical evidence: 3 related Frontend UI candidate(s). Strongest signal: frontend/app/dashboard/page.tsx. No Frontend UI files are part of the current change."
+      },
+      {
+        "surface": "backend_logic",
+        "status": "review",
+        "candidate_count": 11,
+        "representatives": [
+          {
+            "path": "backend/app/services/ingestion.py",
+            "supporting_commits": 5,
+            "relevant_commits": 8,
+            "frequency": 0.625
+          },
+          {
+            "path": "backend/app/services/ai_gateway.py",
+            "supporting_commits": 2,
+            "relevant_commits": 8,
+            "frequency": 0.25
+          },
+          {
+            "path": "backend/app/main.py",
+            "supporting_commits": 4,
+            "relevant_commits": 8,
+            "frequency": 0.5
+          }
+        ],
+        "evidence": {
+          "strongest_frequency": 0.625,
+          "strongest_path": "backend/app/services/ingestion.py",
+          "strongest_support": 5,
+          "strongest_relevant": 8
+        },
+        "explanation": "Historical evidence: 11 related Backend Logic candidate(s). Strongest signal: backend/app/services/ingestion.py. No Backend Logic files are part of the current change."
+      },
+      {
+        "surface": "tests",
+        "status": "review",
+        "candidate_count": 2,
+        "representatives": [
+          {
+            "path": "backend/tests/test_api.py",
+            "supporting_commits": 3,
+            "relevant_commits": 8,
+            "frequency": 0.375
+          },
+          {
+            "path": "backend/tests/test_entity_resolver.py",
+            "supporting_commits": 2,
+            "relevant_commits": 8,
+            "frequency": 0.25
+          }
+        ],
+        "evidence": {
+          "strongest_frequency": 0.375,
+          "strongest_path": "backend/tests/test_api.py",
+          "strongest_support": 3,
+          "strongest_relevant": 8
+        },
+        "explanation": "Historical evidence: 2 related Tests candidate(s). Strongest signal: backend/tests/test_api.py. No Tests files are part of the current change."
+      },
+      {
+        "surface": "data_schema",
+        "status": "review",
+        "candidate_count": 1,
+        "representatives": [
+          {
+            "path": "backend/app/models/schemas.py",
+            "supporting_commits": 5,
+            "relevant_commits": 8,
+            "frequency": 0.625
+          }
+        ],
+        "evidence": {
+          "strongest_frequency": 0.625,
+          "strongest_path": "backend/app/models/schemas.py",
+          "strongest_support": 5,
+          "strongest_relevant": 8
+        },
+        "explanation": "Historical evidence: 1 related Data / Schema candidate(s). Strongest signal: backend/app/models/schemas.py. No Data / Schema files are part of the current change."
+      }
+    ],
+    "summary": {
+      "review_count": 5,
+      "covered_count": 1,
+      "unknown_count": 0
+    }
+  },
+  "historical_commits_analyzed": 8,
+  "likely_forgotten_neighbors": {
+    "high": [
+      {
+        "path": "frontend/lib/api.ts",
+        "file_type": "source",
+        "confidence": 82,
+        "frequency": 1.0,
+        "weighted_frequency": 1.0,
+        "supporting_commits": 8,
+        "relevant_commits": 8,
+        "proximity": 0.0,
+        "class_multiplier": 1.0,
+        "test_boost": 0.0,
+        "intent_compatibility": 1.0,
+        "anchor": "backend/app/routes/demo.py",
+        "explanation": {
+          "evidence": "changed with backend/app/routes/demo.py in 8/8 relevant commits.",
+          "signal": "repeated strong historical co-change pattern.",
+          "why_it_matters": "The current change modifies an API route and this file historically changes alongside API behavior.",
+          "change_intent": "API / backend route"
+        }
+      }
+    ],
+    "medium": [
+      {
+        "path": "frontend/app/dashboard/page.tsx",
+        "file_type": "source",
+        "confidence": 62,
+        "frequency": 0.75,
+        "weighted_frequency": 0.8411909029804375,
+        "supporting_commits": 6,
+        "relevant_commits": 8,
+        "proximity": 0.0,
+        "class_multiplier": 1.0,
+        "test_boost": 0.0,
+        "intent_compatibility": 0.5,
+        "anchor": "backend/app/routes/demo.py",
+        "explanation": {
+          "evidence": "changed with backend/app/routes/demo.py in 6/8 relevant commits.",
+          "signal": "repeated strong historical co-change pattern.",
+          "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+          "change_intent": "API / backend route"
+        }
+      },
+      {
+        "path": "backend/app/routes/violations.py",
+        "file_type": "source",
+        "confidence": 45,
+        "frequency": 0.625,
+        "weighted_frequency": 0.26789102901544787,
+        "supporting_commits": 5,
+        "relevant_commits": 8,
+        "proximity": 1.0,
+        "class_multiplier": 1.0,
+        "test_boost": 0.0,
+        "intent_compatibility": 0.5,
+        "anchor": "backend/app/routes/demo.py",
+        "explanation": {
+          "evidence": "changed with backend/app/routes/demo.py in 5/8 relevant commits.",
+          "signal": "same directory or component as a current change.",
+          "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+          "change_intent": "API / backend route"
+        }
+      }
+    ],
+    "watch": [
+      {
+        "path": "backend/app/models/schemas.py",
+        "file_type": "source",
+        "confidence": 41,
+        "frequency": 0.625,
+        "weighted_frequency": 0.26789102901544787,
+        "supporting_commits": 5,
+        "relevant_commits": 8,
+        "proximity": 0.6666666666666666,
+        "class_multiplier": 1.0,
+        "test_boost": 0.0,
+        "intent_compatibility": 0.5,
+        "anchor": "backend/app/routes/demo.py",
+        "explanation": {
+          "evidence": "changed with backend/app/routes/demo.py in 5/8 relevant commits.",
+          "signal": "historical co-change with a current change.",
+          "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+          "change_intent": "API / backend route"
+        }
+      },
+      {
+        "path": "backend/app/services/ingestion.py",
+        "file_type": "source",
+        "confidence": 41,
+        "frequency": 0.625,
+        "weighted_frequency": 0.26789102901544787,
+        "supporting_commits": 5,
+        "relevant_commits": 8,
+        "proximity": 0.6666666666666666,
+        "class_multiplier": 1.0,
+        "test_boost": 0.0,
+        "intent_compatibility": 0.5,
+        "anchor": "backend/app/routes/demo.py",
+        "explanation": {
+          "evidence": "changed with backend/app/routes/demo.py in 5/8 relevant commits.",
+          "signal": "historical co-change with a current change.",
+          "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+          "change_intent": "API / backend route"
+        }
+      },
+      {
+        "path": "backend/app/routes/pipeline.py",
+        "file_type": "source",
+        "confidence": 39,
+        "frequency": 0.5,
+        "weighted_frequency": 0.22440675067234447,
+        "supporting_commits": 4,
+        "relevant_commits": 8,
+        "proximity": 1.0,
+        "class_multiplier": 1.0,
+        "test_boost": 0.0,
+        "intent_compatibility": 0.5,
+        "anchor": "backend/app/routes/demo.py",
+        "explanation": {
+          "evidence": "changed with backend/app/routes/demo.py in 4/8 relevant commits.",
+          "signal": "same directory or component as a current change.",
+          "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+          "change_intent": "API / backend route"
+        }
+      },
+      {
+        "path": "backend/app/routes/catalog.py",
+        "file_type": "source",
+        "confidence": 37,
+        "frequency": 0.5,
+        "weighted_frequency": 0.17145438664735824,
+        "supporting_commits": 4,
+        "relevant_commits": 8,
+        "proximity": 1.0,
+        "class_multiplier": 1.0,
+        "test_boost": 0.0,
+        "intent_compatibility": 0.5,
+        "anchor": "backend/app/routes/demo.py",
+        "explanation": {
+          "evidence": "changed with backend/app/routes/demo.py in 4/8 relevant commits.",
+          "signal": "same directory or component as a current change.",
+          "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+          "change_intent": "API / backend route"
+        }
+      },
+      {
+        "path": "frontend/components/JudgeProgress.tsx",
+        "file_type": "source",
+        "confidence": 37,
+        "frequency": 0.375,
+        "weighted_frequency": 0.47085381302757584,
+        "supporting_commits": 3,
+        "relevant_commits": 8,
+        "proximity": 0.0,
+        "class_multiplier": 1.0,
+        "test_boost": 0.0,
+        "intent_compatibility": 0.5,
+        "anchor": "backend/app/routes/demo.py",
+        "explanation": {
+          "evidence": "changed with backend/app/routes/demo.py in 3/8 relevant commits.",
+          "signal": "recent history still shows this pairing.",
+          "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+          "change_intent": "API / backend route"
+        }
+      }
+    ]
+  },
+  "possible_test_gap": [
+    {
+      "path": "backend/tests/test_api.py",
+      "file_type": "test",
+      "confidence": 32,
+      "frequency": 0.375,
+      "weighted_frequency": 0.10908193199588542,
+      "supporting_commits": 3,
+      "relevant_commits": 8,
+      "proximity": 0.3333333333333333,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 1.0,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 3/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change modifies an API route and this test historically changes with related API behavior.",
+        "change_intent": "API / backend route"
+      },
+      "reason": "Current API / backend route change. This test historically changes with related API / backend route files but is not part of the current change."
+    },
+    {
+      "path": "backend/tests/test_entity_resolver.py",
+      "file_type": "test",
+      "confidence": 27,
+      "frequency": 0.25,
+      "weighted_frequency": 0.07318118064861617,
+      "supporting_commits": 2,
+      "relevant_commits": 8,
+      "proximity": 0.3333333333333333,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 1.0,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 2/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change modifies an API route and this test historically changes with related API behavior.",
+        "change_intent": "API / backend route"
+      },
+      "reason": "Current API / backend route change. This test historically changes with related API / backend route files but is not part of the current change."
+    }
+  ],
+  "candidates": [
+    {
+      "path": "frontend/lib/api.ts",
+      "file_type": "source",
+      "confidence": 82,
+      "frequency": 1.0,
+      "weighted_frequency": 1.0,
+      "supporting_commits": 8,
+      "relevant_commits": 8,
+      "proximity": 0.0,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 1.0,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 8/8 relevant commits.",
+        "signal": "repeated strong historical co-change pattern.",
+        "why_it_matters": "The current change modifies an API route and this file historically changes alongside API behavior.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "frontend/app/dashboard/page.tsx",
+      "file_type": "source",
+      "confidence": 62,
+      "frequency": 0.75,
+      "weighted_frequency": 0.8411909029804375,
+      "supporting_commits": 6,
+      "relevant_commits": 8,
+      "proximity": 0.0,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 6/8 relevant commits.",
+        "signal": "repeated strong historical co-change pattern.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/routes/violations.py",
+      "file_type": "source",
+      "confidence": 45,
+      "frequency": 0.625,
+      "weighted_frequency": 0.26789102901544787,
+      "supporting_commits": 5,
+      "relevant_commits": 8,
+      "proximity": 1.0,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 5/8 relevant commits.",
+        "signal": "same directory or component as a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/models/schemas.py",
+      "file_type": "source",
+      "confidence": 41,
+      "frequency": 0.625,
+      "weighted_frequency": 0.26789102901544787,
+      "supporting_commits": 5,
+      "relevant_commits": 8,
+      "proximity": 0.6666666666666666,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 5/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/services/ingestion.py",
+      "file_type": "source",
+      "confidence": 41,
+      "frequency": 0.625,
+      "weighted_frequency": 0.26789102901544787,
+      "supporting_commits": 5,
+      "relevant_commits": 8,
+      "proximity": 0.6666666666666666,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 5/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/routes/pipeline.py",
+      "file_type": "source",
+      "confidence": 39,
+      "frequency": 0.5,
+      "weighted_frequency": 0.22440675067234447,
+      "supporting_commits": 4,
+      "relevant_commits": 8,
+      "proximity": 1.0,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 4/8 relevant commits.",
+        "signal": "same directory or component as a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/routes/catalog.py",
+      "file_type": "source",
+      "confidence": 37,
+      "frequency": 0.5,
+      "weighted_frequency": 0.17145438664735824,
+      "supporting_commits": 4,
+      "relevant_commits": 8,
+      "proximity": 1.0,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 4/8 relevant commits.",
+        "signal": "same directory or component as a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "frontend/components/JudgeProgress.tsx",
+      "file_type": "source",
+      "confidence": 37,
+      "frequency": 0.375,
+      "weighted_frequency": 0.47085381302757584,
+      "supporting_commits": 3,
+      "relevant_commits": 8,
+      "proximity": 0.0,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 3/8 relevant commits.",
+        "signal": "recent history still shows this pairing.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/routes/chaos.py",
+      "file_type": "source",
+      "confidence": 35,
+      "frequency": 0.375,
+      "weighted_frequency": 0.18850599932507525,
+      "supporting_commits": 3,
+      "relevant_commits": 8,
+      "proximity": 1.0,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 3/8 relevant commits.",
+        "signal": "same directory or component as a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/services/ai_gateway.py",
+      "file_type": "source",
+      "confidence": 34,
+      "frequency": 0.25,
+      "weighted_frequency": 0.3406401876473489,
+      "supporting_commits": 2,
+      "relevant_commits": 8,
+      "proximity": 0.6666666666666666,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 2/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/main.py",
+      "file_type": "source",
+      "confidence": 33,
+      "frequency": 0.5,
+      "weighted_frequency": 0.14070640440263743,
+      "supporting_commits": 4,
+      "relevant_commits": 8,
+      "proximity": 0.6666666666666666,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 4/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/services/heal_orchestrator.py",
+      "file_type": "source",
+      "confidence": 33,
+      "frequency": 0.5,
+      "weighted_frequency": 0.14070640440263743,
+      "supporting_commits": 4,
+      "relevant_commits": 8,
+      "proximity": 0.6666666666666666,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 4/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/services/validator.py",
+      "file_type": "source",
+      "confidence": 32,
+      "frequency": 0.375,
+      "weighted_frequency": 0.19470984836683167,
+      "supporting_commits": 3,
+      "relevant_commits": 8,
+      "proximity": 0.6666666666666666,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 3/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/tests/test_api.py",
+      "file_type": "test",
+      "confidence": 32,
+      "frequency": 0.375,
+      "weighted_frequency": 0.10908193199588542,
+      "supporting_commits": 3,
+      "relevant_commits": 8,
+      "proximity": 0.3333333333333333,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 1.0,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 3/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change modifies an API route and this test historically changes with related API behavior.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/services/auth_jwt.py",
+      "file_type": "source",
+      "confidence": 32,
+      "frequency": 0.125,
+      "weighted_frequency": 0.3649970800329996,
+      "supporting_commits": 1,
+      "relevant_commits": 8,
+      "proximity": 0.6666666666666666,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 1/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/routes/scrapers.py",
+      "file_type": "source",
+      "confidence": 31,
+      "frequency": 0.375,
+      "weighted_frequency": 0.09722212605953405,
+      "supporting_commits": 3,
+      "relevant_commits": 8,
+      "proximity": 1.0,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 3/8 relevant commits.",
+        "signal": "same directory or component as a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "frontend/app/page.tsx",
+      "file_type": "source",
+      "confidence": 30,
+      "frequency": 0.5,
+      "weighted_frequency": 0.23199027766817862,
+      "supporting_commits": 4,
+      "relevant_commits": 8,
+      "proximity": 0.0,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 4/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/services/ai_analyst.py",
+      "file_type": "source",
+      "confidence": 30,
+      "frequency": 0.125,
+      "weighted_frequency": 0.30473943630007966,
+      "supporting_commits": 1,
+      "relevant_commits": 8,
+      "proximity": 0.6666666666666666,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 1/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/data/demo_listings.py",
+      "file_type": "source",
+      "confidence": 28,
+      "frequency": 0.375,
+      "weighted_frequency": 0.10480565305536818,
+      "supporting_commits": 3,
+      "relevant_commits": 8,
+      "proximity": 0.6666666666666666,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 3/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/services/brightdata_cli.py",
+      "file_type": "source",
+      "confidence": 28,
+      "frequency": 0.375,
+      "weighted_frequency": 0.11100950209712461,
+      "supporting_commits": 3,
+      "relevant_commits": 8,
+      "proximity": 0.6666666666666666,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 3/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/services/violation_engine.py",
+      "file_type": "source",
+      "confidence": 27,
+      "frequency": 0.375,
+      "weighted_frequency": 0.09722212605953405,
+      "supporting_commits": 3,
+      "relevant_commits": 8,
+      "proximity": 0.6666666666666666,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 3/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/routes/alerts.py",
+      "file_type": "source",
+      "confidence": 27,
+      "frequency": 0.25,
+      "weighted_frequency": 0.09206935695698563,
+      "supporting_commits": 2,
+      "relevant_commits": 8,
+      "proximity": 1.0,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 2/8 relevant commits.",
+        "signal": "same directory or component as a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/routes/mcp.py",
+      "file_type": "source",
+      "confidence": 27,
+      "frequency": 0.25,
+      "weighted_frequency": 0.07938502969037262,
+      "supporting_commits": 2,
+      "relevant_commits": 8,
+      "proximity": 1.0,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 0.5,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 2/8 relevant commits.",
+        "signal": "same directory or component as a current change.",
+        "why_it_matters": "The current change is a API / backend route and this file historically changes with it.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/tests/test_entity_resolver.py",
+      "file_type": "test",
+      "confidence": 27,
+      "frequency": 0.25,
+      "weighted_frequency": 0.07318118064861617,
+      "supporting_commits": 2,
+      "relevant_commits": 8,
+      "proximity": 0.3333333333333333,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 1.0,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 2/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change modifies an API route and this test historically changes with related API behavior.",
+        "change_intent": "API / backend route"
+      }
+    },
+    {
+      "path": "backend/app/services/datasets_client.py",
+      "file_type": "source",
+      "confidence": 25,
+      "frequency": 0.125,
+      "weighted_frequency": 0.03590075134726924,
+      "supporting_commits": 1,
+      "relevant_commits": 8,
+      "proximity": 0.6666666666666666,
+      "class_multiplier": 1.0,
+      "test_boost": 0.0,
+      "intent_compatibility": 1.0,
+      "anchor": "backend/app/routes/demo.py",
+      "explanation": {
+        "evidence": "changed with backend/app/routes/demo.py in 1/8 relevant commits.",
+        "signal": "historical co-change with a current change.",
+        "why_it_matters": "The current change modifies an API route and this file historically changes alongside API behavior.",
+        "change_intent": "API / backend route"
+      }
+    }
+  ]
+}

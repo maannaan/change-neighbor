@@ -1,0 +1,36 @@
+schema_version = 1
+
+[[tools]]
+id = "python3"
+command = "python3"
+required = true
+version_requirement = ">=3.10.0"
+
+[[tools.install]]
+manager = "brew"
+package = "python@3"
+
+[[tools.install]]
+manager = "apt"
+package = "python3"
+
+[[tools.install]]
+manager = "system"
+notes = "Python 3.10+ on PATH. The Play ships a stdlib-only analysis script."
+
+[[tools]]
+id = "git"
+command = "git"
+required = true
+
+[[tools.install]]
+manager = "brew"
+package = "git"
+
+[[tools.install]]
+manager = "apt"
+package = "git"
+
+[[tools.install]]
+manager = "system"
+notes = "Git on PATH. The Play only runs read-only git subcommands (status, log, diff, rev-parse, ls-files)."
