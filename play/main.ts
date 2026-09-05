@@ -15,11 +15,11 @@
  * ---
  * name: change-neighbor
  * source: https://github.com/maannaan/change-neighbor
- * description: "Analyze uncommitted Git changes against repository history and surface files, tests, and implementation surfaces that historically change together. Evidence-based recommendations help reviewers inspect likely neighbors before committing without claiming that any file is required. Reads Git metadata, diffs, and history only; does not modify the repository, run its code, install dependencies, or make network calls."
+ * description: Analyze uncommitted Git changes against repository history and surface files, tests, and implementation surfaces that historically change together. Evidence-based recommendations help reviewers inspect likely neighbors before committing without claiming that any file is required. Reads Git metadata, diffs, and history only; does not modify the repository, run its code, install dependencies, or make network calls.
  * metadata:
  *   rote_version: 0.80.0
  *   version: 0.1.0
- *   status: draft
+ *   status: released
  *   kind: atomic
  *   flow_type: sequential
  *   execution_model: steps_with_presentation
@@ -55,14 +55,14 @@
  * - name: repo_path
  *   param_type: string
  *   required: true
- *   description: "Absolute path to the Git repository to analyze."
+ *   description: Absolute path to the Git repository to analyze.
  * steps:
  *   analyze:
  *     type: process.exec
  *     timeout_ms: 120000
  *     argv:
  *     - python3
- *     - "@resource{change_neighbor.py}"
+ *     - '@resource{change_neighbor.py}'
  *     - --repo
  *     - $repo_path
  *     - --json

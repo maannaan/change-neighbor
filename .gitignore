@@ -3,3 +3,5 @@ __pycache__/
 .DS_Store
 .rote-flow-lint.json
 play/.rote-flow-lint.json
+.rote-release.lock
+play/.rote-release.lock
