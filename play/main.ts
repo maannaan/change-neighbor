@@ -15,11 +15,11 @@
  * ---
  * name: change-neighbor
  * source: https://github.com/maannaan/change-neighbor
- * description: Analyze uncommitted Git changes against repository history and surface files, tests, and implementation surfaces that historically change together. Evidence-based recommendations help reviewers inspect likely neighbors before committing without claiming that any file is required. Reads Git metadata, diffs, and history only; does not modify the repository, run its code, install dependencies, or make network calls.
+ * description: "Analyze uncommitted Git changes against repository history to discover files, tests, and system surfaces that historically change together. Change Neighbor helps developers review likely implementation neighbors before committing, using configurable historical evidence and confidence thresholds. All analysis runs locally and read-only: it never modifies the repository, executes project code, installs dependencies, or makes network calls."
  * metadata:
  *   rote_version: 0.80.0
- *   version: 0.1.0
- *   status: released
+ *   version: 0.1.1
+ *   status: draft
  *   kind: atomic
  *   flow_type: sequential
  *   execution_model: steps_with_presentation
@@ -56,6 +56,31 @@
  *   param_type: string
  *   required: true
  *   description: Absolute path to the Git repository to analyze.
+ * - name: history_limit
+ *   param_type: integer
+ *   required: false
+ *   default: 50
+ *   description: Maximum number of historical commits to analyze. Larger values provide broader historical evidence but may take longer.
+ * - name: min_confidence
+ *   param_type: integer
+ *   required: false
+ *   default: 25
+ *   description: Minimum confidence score required for a historical neighbor to appear in recommendations.
+ * - name: include_tests
+ *   param_type: boolean
+ *   required: false
+ *   default: true
+ *   description: Include historically related tests and potential test coverage gaps.
+ * - name: include_surfaces
+ *   param_type: boolean
+ *   required: false
+ *   default: true
+ *   description: Analyze related system surfaces such as API integration, frontend UI, backend logic, tests, and schema.
+ * - name: base_ref
+ *   param_type: string
+ *   required: false
+ *   default: ""
+ *   description: Optional Git reference to use as a comparison baseline. Leave empty to analyze uncommitted changes.
  * steps:
  *   analyze:
  *     type: process.exec
@@ -65,6 +90,16 @@
  *     - '@resource{change_neighbor.py}'
  *     - --repo
  *     - $repo_path
+ *     - --history-limit
+ *     - $history_limit
+ *     - --min-confidence
+ *     - $min_confidence
+ *     - --include-tests
+ *     - $include_tests
+ *     - --include-surfaces
+ *     - $include_surfaces
+ *     - --base-ref
+ *     - $base_ref
  *     - --json
  * presentation_fixtures:
  *   analyze: resources/presentation-fixtures/analyze/fixture.yaml
@@ -114,6 +149,15 @@ type Surface = {
   };
 };
 
+type AnalysisConfig = {
+  history_limit?: number;
+  min_confidence?: number;
+  include_tests?: boolean;
+  include_surfaces?: boolean;
+  base_ref?: string;
+  baseline?: string;
+};
+
 type EngineReport = {
   current_changes?: string[];
   change_analysis?: Array<{
@@ -136,6 +180,7 @@ type EngineReport = {
       unknown_count?: number;
     };
   };
+  analysis_config?: AnalysisConfig;
 };
 
 const INTENT_LABELS: Record<string, string> = {
@@ -280,6 +325,15 @@ const map = report.completeness_map ?? {};
 const surfaces = Array.isArray(map.surfaces) ? map.surfaces : [];
 const reviewCount = Number(map.summary?.review_count ?? 0);
 const commits = Number(report.historical_commits_analyzed ?? 0);
+const config = report.analysis_config ?? {};
+const historyLimit = Number(config.history_limit ?? ctx.params.history_limit ?? 50);
+const minConfidence = Number(config.min_confidence ?? ctx.params.min_confidence ?? 25);
+const includeTests = config.include_tests ?? ctx.params.include_tests ?? true;
+const includeSurfaces = config.include_surfaces ?? ctx.params.include_surfaces ?? true;
+const baseRef = String(config.base_ref ?? ctx.params.base_ref ?? "").trim();
+const baseline = String(config.baseline ?? (baseRef || "Uncommitted working tree"));
+const testsEnabled = includeTests !== false && includeTests !== "false";
+const surfacesEnabled = includeSurfaces !== false && includeSurfaces !== "false";
 
 function neighborBlock(item: Neighbor): string[] {
   const path = String(item.path ?? "unknown path");
@@ -316,9 +370,17 @@ const lines: string[] = [
   "CHANGE NEIGHBOR REPORT",
   "",
   "This Play surfaces historical neighbors that may deserve review before committing.",
-  "It does not claim that any file is required or that the change is incomplete.",
+  "Historical evidence is not a requirement and does not prove a change is unfinished.",
   "",
-  "Current changes:",
+  "ANALYSIS CONFIGURATION",
+  "",
+  `History limit: ${historyLimit}`,
+  `Minimum confidence: ${minConfidence}/100`,
+  `Test analysis: ${testsEnabled ? "Enabled" : "Disabled"}`,
+  `Surface analysis: ${surfacesEnabled ? "Enabled" : "Disabled"}`,
+  `Baseline: ${baseline}`,
+  "",
+  "CURRENT CHANGES",
 ];
 if (currentChanges.length) {
   lines.push(...currentChanges.map((path) => `- ${path}`));
@@ -343,7 +405,14 @@ if (analysis.length) {
   });
 }
 
-if (surfaces.length) {
+if (!surfacesEnabled) {
+  lines.push(
+    "",
+    "SURFACE ANALYSIS DISABLED",
+    "",
+    "The completeness map was not generated for this run.",
+  );
+} else if (surfaces.length) {
   lines.push("", "CHANGE COMPLETENESS MAP", "", `${"CHANGE SURFACE".padEnd(30)}STATUS`);
   for (const surface of surfaces) {
     const label = SURFACE_LABELS[String(surface.surface)] ?? String(surface.surface);
@@ -403,17 +472,23 @@ if (surfaces.length) {
 
 lines.push(
   "",
-  "Historical commits analyzed:",
-  `- ${commits}`,
+  "HISTORICAL NEIGHBORS",
   "",
-  "Likely forgotten neighbors:",
+  `Historical commits analyzed: ${commits}`,
   "",
 );
 lines.push(...band("HIGH CONFIDENCE", high), "");
 lines.push(...band("MEDIUM CONFIDENCE", medium), "");
 lines.push(...band("WATCH LIST", watch), "");
 
-if (gaps.length) {
+if (!testsEnabled) {
+  lines.push(
+    "TEST ANALYSIS DISABLED",
+    "",
+    "Test-related historical neighbors were excluded for this run.",
+    "",
+  );
+} else if (gaps.length) {
   lines.push("POSSIBLE TEST GAP");
   gaps.forEach((item, index) => {
     if (index) lines.push("");
@@ -444,8 +519,16 @@ out.result({
     medium,
     watch,
   },
-  possible_test_gap: gaps,
+  possible_test_gap: testsEnabled ? gaps : [],
   completeness_map: map,
+  analysis_config: {
+    history_limit: historyLimit,
+    min_confidence: minConfidence,
+    include_tests: testsEnabled,
+    include_surfaces: surfacesEnabled,
+    base_ref: baseRef,
+    baseline,
+  },
 });
 }
 

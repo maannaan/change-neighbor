@@ -881,5 +881,13 @@
         "change_intent": "API / backend route"
       }
     }
-  ]
+  ],
+  "analysis_config": {
+    "history_limit": 50,
+    "min_confidence": 25,
+    "include_tests": true,
+    "include_surfaces": true,
+    "base_ref": "",
+    "baseline": "Uncommitted working tree"
+  }
 }
