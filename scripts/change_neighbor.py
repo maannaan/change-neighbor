@@ -234,7 +234,9 @@ def resolve_base_ref(repo: str, value: Optional[str]) -> str:
     if not ref:
         return ""
     try:
-        run_git(repo, ["rev-parse", "--verify", "--end-of-options", "--", ref])
+        # After --end-of-options the ref is a revision, not a path. A "--"
+        # separator here makes Git treat HEAD (and other refs) as pathspecs.
+        run_git(repo, ["rev-parse", "--verify", "--end-of-options", ref])
     except ChangeNeighborError as exc:
         raise ChangeNeighborError(
             f"base_ref is not a valid Git reference: {ref}"
@@ -388,7 +390,7 @@ def get_changed_files(repo: str, base_ref: str = "") -> List[str]:
     if base_ref:
         raw = run_git(
             repo,
-            ["diff", "--name-only", "-z", "--end-of-options", "--", base_ref],
+            ["diff", "--name-only", "-z", "--end-of-options", base_ref],
             check=False,
         )
         return parse_name_only_paths(raw)
@@ -409,7 +411,7 @@ def get_file_diff(repo: str, path: str, base_ref: str = "") -> str:
         if base_ref:
             raw = run_git(
                 repo,
-                ["diff", "--end-of-options", "--", base_ref, "--", path],
+                ["diff", "--end-of-options", base_ref, "--", path],
                 check=False,
             )
         else:

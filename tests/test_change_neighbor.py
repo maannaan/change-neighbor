@@ -656,10 +656,42 @@ class ConfigOptionTests(unittest.TestCase):
             )
         finally:
             cn.run_git = original
-        self.assertIn(["rev-parse", "--verify", "--end-of-options", "--", "origin/main"], captured)
-        self.assertTrue(
-            any(args[:3] == ["diff", "--name-only", "-z"] and "--end-of-options" in args for args in captured)
+        self.assertIn(["rev-parse", "--verify", "--end-of-options", "origin/main"], captured)
+        self.assertIn(
+            ["diff", "--name-only", "-z", "--end-of-options", "origin/main"], captured
         )
+
+    def test_head_base_ref_is_a_revision_not_a_path(self):
+        captured = []
+
+        def fake_run(repo, args, *, check=True):
+            captured.append(list(args))
+            if args[0] == "rev-parse":
+                return "abc123\n"
+            if args[0] == "ls-files":
+                return "backend/app/routes/demo.py\n"
+            if args[0] == "diff" and "--name-only" in args:
+                return "backend/app/routes/demo.py\0"
+            return ""
+
+        original = cn.run_git
+        cn.run_git = fake_run
+        try:
+            self.assertEqual(cn.resolve_base_ref("/repo", "HEAD"), "HEAD")
+            self.assertEqual(
+                cn.get_changed_files("/repo", "HEAD"),
+                ["backend/app/routes/demo.py"],
+            )
+            self.assertEqual(cn.get_file_diff("/repo", "backend/app/routes/demo.py", "HEAD"), "")
+        finally:
+            cn.run_git = original
+        self.assertIn(["rev-parse", "--verify", "--end-of-options", "HEAD"], captured)
+        self.assertIn(["diff", "--name-only", "-z", "--end-of-options", "HEAD"], captured)
+        self.assertIn(["diff", "--end-of-options", "HEAD", "--", "backend/app/routes/demo.py"], captured)
+        for args in captured:
+            if "--end-of-options" in args:
+                idx = args.index("--end-of-options")
+                self.assertNotEqual(args[idx + 1], "--")
 
     def test_json_includes_configuration_and_existing_keys(self):
         payload = json.loads(

@@ -1,39 +1,94 @@
 # Change Neighbor
 
+**What else may deserve review?**
+
+`Python 3.10+` · `Git` · `stdlib tests` · `Rote Play`
+
 Source: [https://github.com/maannaan/change-neighbor](https://github.com/maannaan/change-neighbor)
 
-Public Play: [maannaaan/change-neighbor](https://play.modiqo.ai/maannaaan/change-neighbor)
+Published Play: [`maannaaan/change-neighbor@0.1.2`](https://play.modiqo.ai/maannaaan/change-neighbor@0.1.2)
 
-A read-only repository intelligence tool. It looks at **uncommitted Git changes** (or a chosen baseline), reads the **actual diffs**, infers a deterministic change intent, then compares that against local commit history to surface files, tests, and system surfaces that historically change together.
+A read-only repository intelligence tool. It looks at uncommitted Git changes (or a chosen baseline), reads the actual diffs, and compares them to local commit history. The output is files, tests, and system surfaces that historically change together and **may deserve review**.
 
-It is packaged two ways:
+It never says a file is required. It never says a change is incomplete.
 
-- **Python CLI** — `scripts/change_neighbor.py` (stdlib only)
-- **Rote Play** — adapterless TypeScript Play in `play/` that runs the same engine via `process.exec`
+## Problem
 
-No LLMs. No network. It never modifies the target repository, never runs repository code, and never installs dependencies.
+Developers often edit one file and miss historically related neighbors: the client that calls a new route, the test that covered the last similar change, the schema that moved with the backend.
 
-## Why it exists
+History already knows those pairings. Most review tools do not surface them.
 
-Developers frequently modify one file while missing historically related implementation changes.
+## Solution
 
-Examples:
+Change Neighbor treats local Git history as evidence. It ranks neighbors by co-change, recency, focus, proximity, and a deterministic change intent. Recommendations stay cautious: inspect, do not treat as required.
 
-- an API route changed but the client integration was not reviewed
-- backend behavior changed but related tests were not inspected
-- a schema changed but validation surfaces were missed
-- a feature route changed but supporting services historically change with it
+```
+  dirty tree or base_ref
+            |
+            v
+   read paths + diffs  ----->  change intent
+            |                        |
+            v                        v
+   local commit history  ----->  score neighbors
+            |
+            +--> HIGH / MEDIUM / WATCH files
+            +--> possible test gaps (optional)
+            +--> completeness surfaces (optional)
+```
 
-Change Neighbor uses repository history as **evidence** to surface files and system surfaces that **may deserve review**.
+## Features
 
-## What it analyzes
+- Stdlib-only Python engine (`scripts/change_neighbor.py`)
+- Adapterless Rote Play that execs the same packaged engine
+- Six real inputs: repo path, history limit, min confidence, tests, surfaces, baseline ref
+- HIGH / MEDIUM / WATCH bands plus an optional completeness map
+- Read-only Git argv (`shell=False`, allowlisted subcommands)
+- No network, no adapters, no target-repo code execution, no installs
 
-- uncommitted Git changes, or a chosen comparison baseline
-- file paths and diffs
-- commit co-change history
-- historical coupling, recency, and focus
-- implementation surfaces (API, UI, backend, schema, CI, docs)
-- tests and possible test-coverage gaps
+## Clone and install
+
+```bash
+git clone https://github.com/maannaan/change-neighbor.git
+cd change-neighbor
+```
+
+Requirements: Python 3.10+ and Git on `PATH`. There is nothing to pip-install.
+
+## Python CLI
+
+```bash
+python3 scripts/change_neighbor.py --repo /absolute/path/to/git/repo
+python3 scripts/change_neighbor.py --repo /absolute/path/to/git/repo --json
+```
+
+```bash
+python3 scripts/change_neighbor.py \
+  --repo /absolute/path/to/git/repo \
+  --history-limit 20 \
+  --min-confidence 40 \
+  --include-tests false \
+  --include-surfaces true \
+  --base-ref HEAD \
+  --json
+```
+
+`scripts/change_neighbor.py` is the source of truth. `play/resources/change_neighbor.py` is a byte-identical packaged copy.
+
+## Published Play (pinned)
+
+```bash
+rote play inspect https://play.modiqo.ai/maannaaan/change-neighbor@0.1.2
+rote play run https://play.modiqo.ai/maannaaan/change-neighbor@0.1.2 \
+  repo_path=/absolute/path/to/git/repo
+```
+
+Local checkout:
+
+```bash
+rote play run play/main.ts repo_path=/absolute/path/to/git/repo
+```
+
+`rote play info` may print `version: 0.80.0`. That is the Rote runtime (`rote_version`). The Play version is frontmatter **0.1.2**.
 
 ## Inputs
 
@@ -44,72 +99,17 @@ Change Neighbor uses repository history as **evidence** to surface files and sys
 | `min_confidence` / `--min-confidence` | no | 25 | Hide neighbor recommendations below this 0–100 score |
 | `include_tests` / `--include-tests` | no | true | Include test neighbors and possible test gaps |
 | `include_surfaces` / `--include-surfaces` | no | true | Build the Change Completeness Map |
-| `base_ref` / `--base-ref` | no | empty | Compare against a Git ref; empty means uncommitted changes |
+| `base_ref` / `--base-ref` | no | empty | Compare against a Git ref (`HEAD`, `origin/main`, …). Empty means the uncommitted working tree. Option-shaped values such as `--all` are refused. |
 
-## Play usage
+## Example (Mend eval repo)
 
-```bash
-rote play run play/main.ts repo_path=/absolute/path/to/git/repo
-```
+Dirty file: `backend/app/routes/demo.py`
 
-Configurable example:
+Strong neighbor: `frontend/lib/api.ts` — HIGH **82/100**, changed together in **8/8** relevant commits.
 
-```bash
-rote play run play/main.ts \
-  repo_path=/absolute/path/to/git/repo \
-  history_limit=20 \
-  min_confidence=40 \
-  include_tests=false \
-  include_surfaces=true \
-  base_ref=origin/main
-```
+Inspect that pairing. Do not treat it as required.
 
-## Python CLI
-
-```bash
-python3 scripts/change_neighbor.py --repo /path/to/repo
-python3 scripts/change_neighbor.py --repo /path/to/repo --json
-```
-
-Advanced:
-
-```bash
-python3 scripts/change_neighbor.py \
-  --repo /path/to/repo \
-  --history-limit 20 \
-  --min-confidence 40 \
-  --include-tests false \
-  --include-surfaces true \
-  --base-ref origin/main \
-  --json
-```
-
-Keep `scripts/change_neighbor.py` as the CLI source of truth. `play/resources/change_neighbor.py` is a packaged copy so the Play hash is self-contained.
-
-## How confidence works
-
-Neighbor ranking is deterministic V4 scoring, not a machine-learning model.
-
-```
-0.42 * weighted_frequency   # focus × recency
-0.16 * frequency            # raw co-change
-0.10 * min(support / 8, 1)
-0.10 * proximity
-0.08 * test_boost
-0.14 * intent_compatibility # boost only
-× class_multiplier
-```
-
-| Band | Meaning |
-| --- | --- |
-| HIGH CONFIDENCE | Score ≥ 70. Strong historical pairing; inspect first. |
-| MEDIUM CONFIDENCE | Score ≥ 45. Repeated co-change; worth a look. |
-| WATCH LIST | Score ≥ 25 (or your `min_confidence`). Weaker signal. |
-| POSSIBLE TEST GAP | A historically related test is absent from the current change. |
-
-REVIEW on the completeness map means “inspect this area.” It does **not** mean required or incomplete.
-
-## Safety model
+## Safety
 
 - Allowlisted read-only Git only: `status`, `log`, `rev-parse`, `diff-tree`, `ls-files`, `diff`
 - Executable is always literal `git` with `shell=False`
@@ -117,7 +117,7 @@ REVIEW on the completeness map means “inspect this area.” It does **not** me
 - No project code execution, npm scripts, or target-repo tests
 - No dependency installation
 - No network, remotes, credentials, or adapters
-- Recommendations say **may deserve review**, **historically related**, **consider inspecting**
+- Wording stays **may deserve review**, **historically related**, **consider inspecting**
 
 ## Limitations
 
@@ -132,5 +132,9 @@ REVIEW on the completeness map means “inspect this area.” It does **not** me
 ## Tests
 
 ```bash
-python3 -m unittest tests/test_change_neighbor.py
+python3 -m unittest discover -s tests -v
 ```
+
+## Project status
+
+Released. Public Play: [`maannaaan/change-neighbor@0.1.2`](https://play.modiqo.ai/maannaaan/change-neighbor@0.1.2). Licensed MIT. Contributions welcome via pull request.

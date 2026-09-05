@@ -18,7 +18,7 @@
  * description: Analyze uncommitted Git changes against repository history to discover files, tests, and system surfaces that historically change together. Change Neighbor helps developers review likely implementation neighbors before committing, using configurable historical evidence and confidence thresholds. All analysis runs locally and read-only; it never modifies the repository, executes project code, installs dependencies, or makes network calls.
  * metadata:
  *   rote_version: 0.80.0
- *   version: 0.1.1
+ *   version: 0.1.2
  *   status: released
  *   kind: atomic
  *   flow_type: sequential
