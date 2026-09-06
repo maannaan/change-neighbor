@@ -74,6 +74,16 @@ python3 scripts/change_neighbor.py \
 
 `scripts/change_neighbor.py` is the source of truth. `play/resources/change_neighbor.py` is a byte-identical packaged copy.
 
+## Claude Code skill
+
+Canonical agent skill: [`.claude/skills/change-neighbor/`](.claude/skills/change-neighbor/). Claude Code does not load `.cursor/skills`. To make it available in any project:
+
+```bash
+ln -sfn "$(pwd)/.claude/skills/change-neighbor" ~/.claude/skills/change-neighbor
+```
+
+Skip the command if `~/.claude/skills/change-neighbor` already exists and is not a symlink. Cursor loads the same files via `.cursor/skills/change-neighbor`.
+
 ## Published Play (pinned)
 
 ```bash
